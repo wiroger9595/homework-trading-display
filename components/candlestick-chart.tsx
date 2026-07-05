@@ -2,16 +2,17 @@
 
 import ReactECharts from 'echarts-for-react'
 import { useMemo } from 'react'
-import { generateCandles, type Signal } from '@/lib/mock-data'
+import { generateCandles, type ChartRange, type Signal } from '@/lib/mock-data'
 
 interface CandlestickChartProps {
   symbol: string
+  range?: ChartRange
   signals?: Signal[]
   aiActive?: boolean
 }
 
-export default function CandlestickChart({ symbol, signals = [], aiActive = false }: CandlestickChartProps) {
-  const { data, dates, volumes } = useMemo(() => generateCandles(symbol, 60), [symbol])
+export default function CandlestickChart({ symbol, range = '1M', signals = [], aiActive = false }: CandlestickChartProps) {
+  const { data, dates, volumes } = useMemo(() => generateCandles(symbol, range), [symbol, range])
 
   const markPoints = useMemo(() => {
     if (!aiActive || signals.length === 0) return []
@@ -65,7 +66,7 @@ export default function CandlestickChart({ symbol, signals = [], aiActive = fals
             color: 'rgba(255,255,255,0.35)',
             fontSize: 10,
             fontFamily: 'JetBrains Mono, monospace',
-            interval: 9,
+            interval: Math.max(1, Math.floor(dates.length / 7)),
           },
           splitLine: { show: false },
         },

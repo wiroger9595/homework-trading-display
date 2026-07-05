@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Brain, TrendingUp, TrendingDown, AlertTriangle, Zap, Activity, Target } from 'lucide-react'
-import { generateCandles, deriveSignals, type Signal, type Recommendation } from '@/lib/mock-data'
+import { generateCandles, deriveSignals, type ChartRange, type Signal, type Recommendation } from '@/lib/mock-data'
 import { SYMBOL_MAP } from '@/lib/symbols'
 
 interface AIStrategyPanelProps {
   symbol: string
+  range: ChartRange
   onSignalsGenerated: (signals: Signal[]) => void
   onRecommendations: (recs: Recommendation[]) => void
   onActiveChange: (active: boolean) => void
@@ -87,11 +88,18 @@ const STRATEGY_RECOMMENDATIONS: Record<string, Recommendation[]> = {
   ],
 }
 
-export default function AIStrategyPanel({ symbol, onSignalsGenerated, onRecommendations, onActiveChange, isActive }: AIStrategyPanelProps) {
+export default function AIStrategyPanel({ symbol, range, onSignalsGenerated, onRecommendations, onActiveChange, isActive }: AIStrategyPanelProps) {
   const [selectedStrategy, setSelectedStrategy] = useState('ai')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<(typeof SIGNAL_MESSAGES)[string] | null>(null)
   const [progress, setProgress] = useState(0)
+
+  // Re-derive signal positions when the chart range changes while signals are shown
+  useEffect(() => {
+    if (!result || loading) return
+    onSignalsGenerated(deriveSignals(generateCandles(symbol, range), result.action as 'BUY' | 'SELL' | 'HOLD'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range])
 
   const handleAnalyze = async () => {
     if (loading) return
@@ -112,7 +120,7 @@ export default function AIStrategyPanel({ symbol, onSignalsGenerated, onRecommen
     setResult(res)
     // Derive signals from the same seeded candle series the chart renders,
     // so markers land exactly on real candles
-    const signals = deriveSignals(generateCandles(symbol, 60), res.action as 'BUY' | 'SELL' | 'HOLD')
+    const signals = deriveSignals(generateCandles(symbol, range), res.action as 'BUY' | 'SELL' | 'HOLD')
     onSignalsGenerated(signals)
     onRecommendations(STRATEGY_RECOMMENDATIONS[selectedStrategy] ?? [])
     onActiveChange(true)

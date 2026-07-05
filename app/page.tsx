@@ -11,7 +11,7 @@ import MarketHeatmap from '@/components/market-heatmap'
 import SignalToast from '@/components/signal-toast'
 import CandlestickChart from '@/components/candlestick-chart'
 import { Clock, BarChart3, List, Map, Radio, Sparkles } from 'lucide-react'
-import type { Signal, Recommendation } from '@/lib/mock-data'
+import { RANGE_CONFIG, type ChartRange, type Signal, type Recommendation } from '@/lib/mock-data'
 
 const TradingViewChart = dynamic(() => import('@/components/tradingview-chart'), {
   ssr: false,
@@ -42,7 +42,15 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'heatmap', label: '熱度圖', icon: Map },
 ]
 
-const TIMEFRAMES = ['1m', '5m', '15m', '1H', '4H', '1D', '1W']
+// Time ranges from 5 years down to 1-minute candles
+const RANGES: { id: ChartRange; label: string }[] = [
+  { id: '1D', label: '1日' },
+  { id: '5D', label: '5日' },
+  { id: '1M', label: '1月' },
+  { id: '6M', label: '6月' },
+  { id: '1Y', label: '1年' },
+  { id: '5Y', label: '5年' },
+]
 
 // Map refresh label to milliseconds (0 = manual / TradingView handles live)
 const REFRESH_MS: Record<string, number> = {
@@ -60,7 +68,7 @@ export default function DashboardPage() {
   const [aiActive, setAiActive] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>('chart')
   const [chartMode, setChartMode] = useState<ChartMode>('live')
-  const [timeframe, setTimeframe] = useState('1D')
+  const [range, setRange] = useState<ChartRange>('6M')
   const [refreshRate, setRefreshRate] = useState('即時')
   // chartKey increments every refresh cycle to force TradingViewChart remount
   const [chartKey, setChartKey] = useState(0)
@@ -73,15 +81,17 @@ export default function DashboardPage() {
     setChartMode('live')
   }
 
-  // New signals from the AI panel: mark them on the simulated chart without any page reload
+  // New signals from the AI panel: mark them on the simulated chart without any page reload.
+  // Only auto-switch to the AI chart on a fresh analysis (empty → signals), not on
+  // range-change re-derives, so the user can freely compare with the live chart.
   const handleSignalsGenerated = (sigs: Signal[]) => {
-    setSignals(sigs)
-    if (sigs.length > 0) {
+    if (sigs.length > 0 && signals.length === 0) {
       setActiveTab('chart')
       setChartMode('ai')
-    } else {
+    } else if (sigs.length === 0) {
       setChartMode('live')
     }
+    setSignals(sigs)
   }
 
   // Auto-refresh: only active when refreshRate is not '即時'
@@ -167,27 +177,29 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                {/* Timeframe selector (live chart only) */}
-                {activeTab === 'chart' && chartMode === 'live' && (
+                {/* Time range selector (both chart modes) */}
+                {activeTab === 'chart' && (
                   <div className="flex items-center gap-0.5">
-                    {TIMEFRAMES.map((tf) => (
+                    {RANGES.map((r) => (
                       <button
-                        key={tf}
-                        onClick={() => setTimeframe(tf)}
+                        key={r.id}
+                        onClick={() => setRange(r.id)}
+                        title={`${r.label}（${RANGE_CONFIG[r.id].candleLabel}）`}
                         className={`px-2.5 py-1 rounded text-xs font-mono font-semibold transition-all duration-150 ${
-                          timeframe === tf
+                          range === r.id
                             ? 'bg-neon-dim text-primary'
                             : 'text-muted-foreground hover:text-foreground'
                         }`}
                       >
-                        {tf}
+                        {r.label}
                       </button>
                     ))}
                   </div>
                 )}
                 {activeTab === 'chart' && chartMode === 'ai' && (
                   <span className="text-[10px] font-mono text-muted-foreground bg-muted/30 px-2 py-1 rounded">
-                    模擬數據 · 60 根日 K{aiActive && signals.length > 0 ? ` · ${signals.length} 個訊號` : ''}
+                    模擬數據 · {RANGE_CONFIG[range].count} 根{RANGE_CONFIG[range].candleLabel}
+                    {aiActive && signals.length > 0 ? ` · ${signals.length} 個訊號` : ''}
                   </span>
                 )}
 
@@ -207,13 +219,13 @@ export default function DashboardPage() {
               <div className="flex-1 p-2 md:p-3" style={{ minHeight: 360 }}>
                 {activeTab === 'chart' && chartMode === 'live' && (
                   <TradingViewChart
-                    key={`${selectedSymbol}-${timeframe}-${chartKey}`}
+                    key={`${selectedSymbol}-${range}-${chartKey}`}
                     symbol={selectedSymbol}
-                    timeframe={timeframe}
+                    range={range}
                   />
                 )}
                 {activeTab === 'chart' && chartMode === 'ai' && (
-                  <CandlestickChart symbol={selectedSymbol} signals={signals} aiActive={aiActive} />
+                  <CandlestickChart symbol={selectedSymbol} range={range} signals={signals} aiActive={aiActive} />
                 )}
                 {activeTab === 'positions' && (
                   <div className="h-full overflow-y-auto">
@@ -243,6 +255,7 @@ export default function DashboardPage() {
             >
               <AIStrategyPanel
                 symbol={selectedSymbol}
+                range={range}
                 onSignalsGenerated={handleSignalsGenerated}
                 onRecommendations={setRecommendations}
                 onActiveChange={setAiActive}

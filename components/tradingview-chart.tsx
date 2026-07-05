@@ -2,24 +2,24 @@
 
 import { useEffect, useRef } from 'react'
 import { SYMBOL_MAP } from '@/lib/symbols'
+import type { ChartRange } from '@/lib/mock-data'
 
 interface TradingViewChartProps {
   symbol: string
-  timeframe: string
+  range: ChartRange
 }
 
-// Map our timeframe labels to TradingView interval values
-const TF_MAP: Record<string, string> = {
-  '1m':  '1',
-  '5m':  '5',
-  '15m': '15',
-  '1H':  '60',
-  '4H':  '240',
-  '1D':  'D',
-  '1W':  'W',
+// Map our range ids to TradingView widget range + candle interval
+const RANGE_MAP: Record<ChartRange, { range: string; interval: string }> = {
+  '1D': { range: '1D', interval: '1' },
+  '5D': { range: '5D', interval: '30' },
+  '1M': { range: '1M', interval: '60' },
+  '6M': { range: '6M', interval: 'D' },
+  '1Y': { range: '12M', interval: 'D' },
+  '5Y': { range: '60M', interval: 'W' },
 }
 
-export default function TradingViewChart({ symbol, timeframe }: TradingViewChartProps) {
+export default function TradingViewChart({ symbol, range }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   // If symbol already contains exchange prefix (e.g. "NYSE:TSM"), use it directly.
@@ -27,7 +27,7 @@ export default function TradingViewChart({ symbol, timeframe }: TradingViewChart
   const tvSymbol = symbol.includes(':')
     ? symbol
     : (SYMBOL_MAP[symbol]?.tvSymbol ?? `NASDAQ:${symbol}`)
-  const interval = TF_MAP[timeframe] ?? 'D'
+  const { range: tvRange, interval } = RANGE_MAP[range] ?? RANGE_MAP['6M']
 
   useEffect(() => {
     const container = containerRef.current
@@ -44,6 +44,8 @@ export default function TradingViewChart({ symbol, timeframe }: TradingViewChart
       autosize: true,
       symbol: tvSymbol,
       interval: interval,
+      range: tvRange,
+      withdateranges: true,
       timezone: 'Asia/Taipei',
       theme: 'dark',
       style: '1',           // Candlestick
@@ -73,7 +75,7 @@ export default function TradingViewChart({ symbol, timeframe }: TradingViewChart
     return () => {
       if (container) container.innerHTML = ''
     }
-  }, [tvSymbol, interval])
+  }, [tvSymbol, interval, tvRange])
 
   return (
     <div
