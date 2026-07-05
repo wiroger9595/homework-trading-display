@@ -76,7 +76,18 @@ export default function Navbar({ selectedSymbol, onSymbolChange, refreshRate, on
         const data = await res.json()
         setSearchResults(data)
       } catch {
-        setSearchResults([])
+        // Static deploy has no API routes — fall back to filtering local seed symbols
+        const qq = q.toUpperCase()
+        setSearchResults(
+          Object.values(SYMBOL_MAP)
+            .filter((s) => s.ticker.includes(qq) || s.name.toUpperCase().includes(qq))
+            .map((s) => ({
+              symbol: s.ticker,
+              exchange: s.tvSymbol.split(':')[0],
+              description: s.name,
+              type: 'stock',
+            }))
+        )
       } finally {
         setSearchLoading(false)
       }

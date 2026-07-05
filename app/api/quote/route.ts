@@ -1,18 +1,5 @@
 import { NextResponse } from 'next/server'
-
-export interface QuoteData {
-  symbol: string
-  name: string
-  price: number
-  prevClose: number
-  changePercent: number
-  high: number
-  low: number
-  volume: number
-  marketCap: number | null
-  currency: string
-  exchange: string
-}
+import type { QuoteData } from '@/lib/quote'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)

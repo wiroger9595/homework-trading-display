@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { TrendingUp, TrendingDown, BarChart2, DollarSign, Activity, Layers, RefreshCw, AlertCircle } from 'lucide-react'
-import type { QuoteData } from '@/app/api/quote/route'
+import { fallbackQuote, type QuoteData } from '@/lib/quote'
 
 interface StatCardsProps {
   symbol: string
@@ -91,7 +91,14 @@ export default function StatCards({ symbol }: StatCardsProps) {
     fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then((data: QuoteData) => { if (!cancelled) { setQuote(data); setLoading(false) } })
-      .catch(() => { if (!cancelled) { setError(true); setLoading(false) } })
+      .catch(() => {
+        if (cancelled) return
+        // Static deploy (e.g. GitHub Pages) has no API routes — fall back to seed data
+        const fb = fallbackQuote(symbol)
+        if (fb) setQuote(fb)
+        else setError(true)
+        setLoading(false)
+      })
 
     return () => { cancelled = true }
   }, [symbol])
